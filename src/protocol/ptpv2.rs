@@ -2,7 +2,7 @@ use deku::prelude::*;
 
 #[derive(Debug, PartialEq, DekuRead, DekuWrite)]
 #[deku(endian = "big")]
-struct PtpAnnounceProtocol {
+struct PtpHeaderProtocol {
     #[deku(bits = "4")]
     majorsdoid: u8,
     #[deku(bits = "4")]
@@ -27,6 +27,11 @@ struct PtpAnnounceProtocol {
     #[deku(bits = "48")]
     origintimestamp_seconds: u64,
     origintimestamp_nanoseconds: u32,
+}
+
+#[derive(Debug, PartialEq, DekuRead, DekuWrite)]
+#[deku(endian = "big")]
+struct PtpAnnouceProtocol {
     origincurrentutcoffset: u16,
     #[deku(pad_bytes_before = "1")]
     priority1: u8,
@@ -47,8 +52,11 @@ mod tests {
     #[test]
     fn announce_msg() {
         let data = fs::read("src/protocol/test_data/msg_announce.bin").unwrap();
-        let (rest, val) = PtpAnnounceProtocol::from_bytes((&data, 0)).unwrap();
-        assert_eq!(rest.1, 0);
+        let (rest, val) = PtpHeaderProtocol::from_bytes((&data, 0)).unwrap();
+        assert_eq!(rest.0.len(), 20);
         assert_eq!(val.clockidentity, 0x485b39fffe11a8ab);
+
+        let (_rest, val) = PtpAnnouceProtocol::from_bytes(rest).unwrap();
+        assert_eq!(val.priority1, 127);
     }
 }
