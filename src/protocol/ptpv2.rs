@@ -1,3 +1,4 @@
+use std::fmt::Display;
 use crate::protocol::error::Error;
 use crate::protocol::messages::{
         PtpHeaderProtocol, 
@@ -10,6 +11,7 @@ use crate::protocol::messages::{
 };
 use deku::prelude::*;
 
+#[derive(Debug)]
 pub enum PtpMsg {
     Sync(PtpData),
     DelayReq(PtpData),
@@ -44,6 +46,18 @@ impl PtpMsg {
             MGS_DELAY_RESP => Ok(PtpMsg::DelayResp(ptp_data)),
             MGS_SYNC => Ok(PtpMsg::Sync(ptp_data)),
             _ => Err(Error),
+        }
+    }
+}
+
+impl Display for PtpMsg {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            PtpMsg::Sync(x) => write!(f, "Sync {:X}", x.clockidentity),
+            PtpMsg::DelayReq(x) => write!(f, "Delay_Req {:X}", x.clockidentity),
+            PtpMsg::FollowUp(x) => write!(f, "Follow_Up {:X}", x.clockidentity),
+            PtpMsg::DelayResp(x) => write!(f, "Delay_Resp {:X}", x.clockidentity),
+            PtpMsg::Announce(x) => write!(f, "Announce {:X}", x.grandmasterclockidentity),
         }
     }
 }
@@ -101,5 +115,13 @@ mod tests {
         if let Ok(PtpMsg::Sync(data)) = msg {
             assert_eq!(data.clockidentity, 0x485b39fffe11a8ab);
         }
+    }
+
+    #[test]
+    fn display(){
+        let data = fs::read("src/protocol/test_data/msg_sync.bin").unwrap();
+        let msg = PtpMsg::build(&data).unwrap();
+        let s = format!("{}", msg);
+        assert_eq!(s, "Sync 485B39FFFE11A8AB");
     }
 }
