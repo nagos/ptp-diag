@@ -22,23 +22,26 @@ pub enum PtpMsg {
 
 #[derive(Debug)]
 pub struct AnnounceData {
-    pub grandmasterclockidentity: u64
+    pub grandmasterclockidentity: u64,
+    pub domainnumber: u8,
 }
 
 #[derive(Debug)]
 pub struct PtpData {
-    pub clockidentity: u64
+    pub clockidentity: u64,
+    pub domainnumber: u8,
 }
 
 impl PtpMsg {
     pub fn build(data: &[u8]) -> Result<PtpMsg, Error> {
         let (rest, val) = PtpHeaderProtocol::from_bytes((data, 0)).map_err(|_|Error)?;
-        let ptp_data = PtpData{clockidentity: val.clockidentity};
+        let ptp_data = PtpData{clockidentity: val.clockidentity, domainnumber: val.domainnumber};
         match val.messagetype {
             MGS_ANNOUNCE => {
                 let (_, val) = PtpAnnouceProtocol::from_bytes(rest).map_err(|_|Error)?;
                 Ok(PtpMsg::Announce(AnnounceData{
-                    grandmasterclockidentity: val.grandmasterclockidentity
+                    grandmasterclockidentity: val.grandmasterclockidentity,
+                    domainnumber: ptp_data.domainnumber,
                 }))
             },
             MGS_DELAY_REQ => Ok(PtpMsg::DelayReq(ptp_data)),
