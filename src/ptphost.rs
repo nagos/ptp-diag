@@ -13,7 +13,6 @@ pub enum PtpHostFlag {
     Announce,
     Sync,
     FollowUp,
-    DelayReq,
     DelayResp,
 }
 
@@ -35,7 +34,6 @@ impl PtpHost {
             PtpHostFlag::Announce => self.announce = true,
             PtpHostFlag::Sync => self.sync = true,
             PtpHostFlag::FollowUp => self.follow_up = true,
-            PtpHostFlag::DelayReq => self.delay_req = true,
             PtpHostFlag::DelayResp => self.delay_resp = true,
         }
     }

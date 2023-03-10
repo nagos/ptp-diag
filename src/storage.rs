@@ -9,10 +9,10 @@ pub struct Storage {
 impl Storage {
     pub fn add(&mut self, clock:u64, domain: u8, flag: PtpHostFlag) {
         let key = (clock, domain);
-        let host = self.storage.entry(key).or_insert(PtpHost::build(clock, domain));
+        let host = self.storage.entry(key).or_insert_with(|| PtpHost::build(clock, domain));
         host.set(flag);
     }
-    pub fn into_iter(self) -> btree_map::IntoValues<(u64, u8), PtpHost> {
+    pub fn into_values(self) -> btree_map::IntoValues<(u64, u8), PtpHost> {
         self.storage.into_values()
     }
     pub fn values(&self) -> btree_map::Values<'_, (u64, u8), PtpHost> {
@@ -32,7 +32,7 @@ mod tests {
         storage.add(1, 127, PtpHostFlag::Sync);
         storage.add(2, 127, PtpHostFlag::Announce);
 
-        let mut itr = storage.into_iter();
+        let mut itr = storage.into_values();
         let item_1 = itr.next().unwrap();
         assert!(item_1.sync);
         assert!(item_1.announce);
