@@ -15,6 +15,9 @@ impl Storage {
     pub fn into_iter(self) -> btree_map::IntoValues<(u64, u8), PtpHost> {
         self.storage.into_values()
     }
+    pub fn values(&self) -> btree_map::Values<'_, (u64, u8), PtpHost> {
+        self.storage.values()
+    }
 }
 
 #[cfg(test)]
