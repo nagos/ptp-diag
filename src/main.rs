@@ -21,11 +21,11 @@ const PTP_DST_ADDRESSS: &str = "224.0.1.129:319";
 
 fn parse_msg(msg: PtpMsg, storage: &mut Storage) -> Option<u8> {
     match msg {
-        PtpMsg::Announce(d) => storage.add(d.grandmasterclockidentity, d.domainnumber, PtpHostFlag::Announce),
+        PtpMsg::Announce(d) => storage.add(d.clockidentity, d.domain, PtpHostFlag::Announce),
         PtpMsg::DelayReq(_) => None,
-        PtpMsg::DelayResp(d) => storage.add(d.clockidentity, d.domainnumber, PtpHostFlag::DelayResp),
-        PtpMsg::FollowUp(d) => storage.add(d.clockidentity, d.domainnumber, PtpHostFlag::FollowUp),
-        PtpMsg::Sync(d) => storage.add(d.clockidentity, d.domainnumber, PtpHostFlag::Sync),
+        PtpMsg::DelayResp(d) => storage.add(d.clockidentity, d.domain, PtpHostFlag::DelayResp),
+        PtpMsg::FollowUp(d) => storage.add(d.clockidentity, d.domain, PtpHostFlag::FollowUp),
+        PtpMsg::Sync(d) => storage.add(d.clockidentity, d.domain, PtpHostFlag::Sync),
     }
 }
 
@@ -34,7 +34,7 @@ fn receive_loop(socket: UdpSocket, channel: mpsc::Sender<PtpMsg>, channel_req: O
         let mut buf = [0; 106];
         
         if let Ok(received) = socket.recv(&mut buf) {
-            let msg = PtpMsg::new(&buf[..received]).unwrap();
+            let msg = PtpMsg::parse(&buf[..received]).unwrap();
             channel.send(msg).unwrap();
         }
 
@@ -46,8 +46,8 @@ fn receive_loop(socket: UdpSocket, channel: mpsc::Sender<PtpMsg>, channel_req: O
     }
 }
 
-fn send_delay_req(socket: &UdpSocket, domainnumber: u8) {
-    let buf = PtpMsg::build(PtpMsg::DelayReq(PtpData{clockidentity: 0x123, domainnumber}));
+fn send_delay_req(socket: &UdpSocket, domain: u8) {
+    let buf = PtpMsg::build(PtpMsg::DelayReq(PtpData{clockidentity: 0x123, domain}));
     socket.send_to(&buf, PTP_DST_ADDRESSS).unwrap();
 }
 

@@ -22,26 +22,26 @@ pub enum PtpMsg {
 
 #[derive(Debug)]
 pub struct AnnounceData {
-    pub grandmasterclockidentity: u64,
-    pub domainnumber: u8,
+    pub clockidentity: u64,
+    pub domain: u8,
 }
 
 #[derive(Debug)]
 pub struct PtpData {
     pub clockidentity: u64,
-    pub domainnumber: u8,
+    pub domain: u8,
 }
 
 impl PtpMsg {
-    pub fn new(data: &[u8]) -> Result<PtpMsg, Error> {
+    pub fn parse(data: &[u8]) -> Result<PtpMsg, Error> {
         let (rest, val) = PtpHeaderProtocol::from_bytes((data, 0)).map_err(|_|Error)?;
-        let ptp_data = PtpData{clockidentity: val.clockidentity, domainnumber: val.domainnumber};
+        let ptp_data = PtpData{clockidentity: val.clockidentity, domain: val.domainnumber};
         match val.messagetype {
             MGS_ANNOUNCE => {
                 let (_, val) = PtpAnnouceProtocol::from_bytes(rest).map_err(|_|Error)?;
                 Ok(PtpMsg::Announce(AnnounceData{
-                    grandmasterclockidentity: val.grandmasterclockidentity,
-                    domainnumber: ptp_data.domainnumber,
+                    clockidentity: val.grandmasterclockidentity,
+                    domain: ptp_data.domain,
                 }))
             },
             MGS_DELAY_REQ => Ok(PtpMsg::DelayReq(ptp_data)),
@@ -57,7 +57,7 @@ impl PtpMsg {
             PtpMsg::DelayReq(x) => PtpHeaderProtocol::build(
                 MGS_DELAY_REQ, 
                 44, 
-                x.domainnumber, 
+                x.domain, 
                 x.clockidentity, 
                 1, 
                 MGS_DELAY_REQ
@@ -74,7 +74,7 @@ impl Display for PtpMsg {
             PtpMsg::DelayReq(x) => write!(f, "Delay_Req {:X}", x.clockidentity),
             PtpMsg::FollowUp(x) => write!(f, "Follow_Up {:X}", x.clockidentity),
             PtpMsg::DelayResp(x) => write!(f, "Delay_Resp {:X}", x.clockidentity),
-            PtpMsg::Announce(x) => write!(f, "Announce {:X}", x.grandmasterclockidentity),
+            PtpMsg::Announce(x) => write!(f, "Announce {:X}", x.clockidentity),
         }
     }
 }
@@ -87,17 +87,17 @@ mod tests {
     #[test]
     fn build_announce(){
         let data = fs::read("src/protocol/test_data/msg_announce.bin").unwrap();
-        let msg = PtpMsg::new(&data);
+        let msg = PtpMsg::parse(&data);
         assert!(matches!(msg, Ok(PtpMsg::Announce(_))));
         if let Ok(PtpMsg::Announce(data)) = msg {
-            assert_eq!(data.grandmasterclockidentity, 0x485b39fffe11a8ab);
+            assert_eq!(data.clockidentity, 0x485b39fffe11a8ab);
         }
     }
 
     #[test]
     fn build_delay_req(){
         let data = fs::read("src/protocol/test_data/msg_delay_req.bin").unwrap();
-        let msg = PtpMsg::new(&data);
+        let msg = PtpMsg::parse(&data);
         assert!(matches!(msg, Ok(PtpMsg::DelayReq(_))));
         if let Ok(PtpMsg::DelayReq(data)) = msg {
             assert_eq!(data.clockidentity, 0x485B39FFFE520449);
@@ -107,7 +107,7 @@ mod tests {
     #[test]
     fn build_follow_up(){
         let data = fs::read("src/protocol/test_data/msg_follow_up.bin").unwrap();
-        let msg = PtpMsg::new(&data);
+        let msg = PtpMsg::parse(&data);
         assert!(matches!(msg, Ok(PtpMsg::FollowUp(_))));
         if let Ok(PtpMsg::FollowUp(data)) = msg {
             assert_eq!(data.clockidentity, 0x485b39fffe11a8ab);
@@ -117,7 +117,7 @@ mod tests {
     #[test]
     fn build_delay_resp(){
         let data = fs::read("src/protocol/test_data/msg_delay_resp.bin").unwrap();
-        let msg = PtpMsg::new(&data);
+        let msg = PtpMsg::parse(&data);
         assert!(matches!(msg, Ok(PtpMsg::DelayResp(_))));
         if let Ok(PtpMsg::DelayResp(data)) = msg {
             assert_eq!(data.clockidentity, 0x485b39fffe11a8ab);
@@ -127,7 +127,7 @@ mod tests {
     #[test]
     fn build_sync(){
         let data = fs::read("src/protocol/test_data/msg_sync.bin").unwrap();
-        let msg = PtpMsg::new(&data);
+        let msg = PtpMsg::parse(&data);
         assert!(matches!(msg, Ok(PtpMsg::Sync(_))));
         if let Ok(PtpMsg::Sync(data)) = msg {
             assert_eq!(data.clockidentity, 0x485b39fffe11a8ab);
@@ -137,19 +137,19 @@ mod tests {
     #[test]
     fn display(){
         let data = fs::read("src/protocol/test_data/msg_sync.bin").unwrap();
-        let msg = PtpMsg::new(&data).unwrap();
+        let msg = PtpMsg::parse(&data).unwrap();
         let s = format!("{}", msg);
         assert_eq!(s, "Sync 485B39FFFE11A8AB");
     }
 
     #[test]
     fn create() {
-        let data = PtpMsg::build(PtpMsg::DelayReq(PtpData{clockidentity: 0x123, domainnumber: 123}));
-        let msg = PtpMsg::new(&data).unwrap();
+        let data = PtpMsg::build(PtpMsg::DelayReq(PtpData{clockidentity: 0x123, domain: 123}));
+        let msg = PtpMsg::parse(&data).unwrap();
         assert!(matches!(msg, PtpMsg::DelayReq(..)));
         if let PtpMsg::DelayReq(x) = msg {
             assert_eq!(x.clockidentity, 0x123);
-            assert_eq!(x.domainnumber, 123);
+            assert_eq!(x.domain, 123);
         }
     }
 }
