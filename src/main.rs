@@ -11,36 +11,44 @@ use std::time::Duration;
 use std::time::SystemTime;
 use crate::protocol::ptpv2::PtpData;
 use storage::Storage;
+use std::thread;
+use std::sync::mpsc;
 
 const PTP_ADDRESSS: &str = "224.0.1.129";
 const LOCAL_ADDRESSS: &str = "0.0.0.0:320";
 const LOCAL_ADDRESSS2: &str = "0.0.0.0:319";
 const PTP_DST_ADDRESSS: &str = "224.0.1.129:319";
 
-fn parse_msg(received: &[u8], storage: &mut Storage) {
-    let msg = PtpMsg::new(received).unwrap();
+fn parse_msg(msg: PtpMsg, storage: &mut Storage) -> Option<u8> {
     match msg {
         PtpMsg::Announce(d) => storage.add(d.grandmasterclockidentity, d.domainnumber, PtpHostFlag::Announce),
-        PtpMsg::DelayReq(_) => {},
+        PtpMsg::DelayReq(_) => None,
         PtpMsg::DelayResp(d) => storage.add(d.clockidentity, d.domainnumber, PtpHostFlag::DelayResp),
         PtpMsg::FollowUp(d) => storage.add(d.clockidentity, d.domainnumber, PtpHostFlag::FollowUp),
         PtpMsg::Sync(d) => storage.add(d.clockidentity, d.domainnumber, PtpHostFlag::Sync),
     }
 }
 
-fn receive_loop(socket: &UdpSocket, socket2: &UdpSocket, storage: &mut Storage, delay: u64) {
-    let start_time = SystemTime::now();
-    while start_time.elapsed().unwrap() <= Duration::from_secs(delay) {
+fn receive_loop(socket: UdpSocket, channel: mpsc::Sender<PtpMsg>, channel_req: Option<mpsc::Receiver<u8>>) {
+    loop {
         let mut buf = [0; 106];
         
         if let Ok(received) = socket.recv(&mut buf) {
-            parse_msg(&buf[..received], storage);
+            let msg = PtpMsg::new(&buf[..received]).unwrap();
+            channel.send(msg).unwrap();
         }
 
-        if let Ok(received) = socket2.recv(&mut buf) {
-            parse_msg(&buf[..received], storage);
+        if let Some(ref x) = channel_req {
+            if let Ok(domain) = x.try_recv() {
+                send_delay_req(&socket, domain);
+            }
         }
     }
+}
+
+fn send_delay_req(socket: &UdpSocket, domainnumber: u8) {
+    let buf = PtpMsg::build(PtpMsg::DelayReq(PtpData{clockidentity: 0x123, domainnumber}));
+    socket.send_to(&buf, PTP_DST_ADDRESSS).unwrap();
 }
 
 fn open_socket(local_address: &str, ptp_address: &str) -> UdpSocket {
@@ -66,13 +74,20 @@ fn main() {
     let socket = open_socket(LOCAL_ADDRESSS, PTP_ADDRESSS);
     let socket2 = open_socket(LOCAL_ADDRESSS2, PTP_ADDRESSS);
     let mut storage = Storage::default();
+    let (tx, rx) = mpsc::channel::<PtpMsg>();
+    let tx2 = tx.clone();
+    let (tx_req, rx_req) = mpsc::channel::<u8>();
 
-    receive_loop(&socket, &socket2, &mut storage, 5);
-    for i in storage.values() {
-        let buf = PtpMsg::build(PtpMsg::DelayReq(PtpData{clockidentity: 0x123, domainnumber: i.domainnumber}));
-        socket2.send_to(&buf, PTP_DST_ADDRESSS).unwrap();
+    thread::spawn(move || receive_loop(socket, tx, None));
+    thread::spawn(move || receive_loop(socket2, tx2, Some(rx_req)));
+    
+    let start_time = SystemTime::now();
+    while start_time.elapsed().unwrap() <= Duration::from_secs(5){
+        let msg = rx.recv().unwrap();
+        if let Some(domain) = parse_msg(msg, &mut storage) {
+            tx_req.send(domain).unwrap();
+        }
     }
-    receive_loop(&socket, &socket2, &mut storage, 1);
 
     println!("{:016} {:6} {:9} {:9} {:9} {:9}", 
         "ID", 
