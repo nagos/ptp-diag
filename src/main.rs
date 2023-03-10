@@ -52,6 +52,14 @@ fn open_socket(local_address: &str, ptp_address: &str) -> UdpSocket {
     socket
 }
 
+fn bool_to_str(value: bool) -> String {
+    if value {
+        String::from("+")
+    } else {
+        String::from("-")
+    }
+}
+
 fn main() {
     let socket = open_socket(LOCAL_ADDRESSS, PTP_ADDRESSS);
     let socket2 = open_socket(LOCAL_ADDRESSS2, PTP_ADDRESSS);
@@ -64,8 +72,23 @@ fn main() {
     }
     receive_loop(&socket, &socket2, &mut storage, 1);
 
+    println!("{:016} {:6} {:9} {:9} {:9} {:9}", 
+        "ID", 
+        "Domain", 
+        "Announce", 
+        "Sync", 
+        "Follow Up", 
+        "Delay Resp"
+    );
     for i in storage.into_iter() {
-        dbg!(i);
+        println!("{:<016x} {:<6} {:9} {:9} {:9} {:9}", 
+            i.clockidentity, 
+            i.domainnumber, 
+            bool_to_str(i.announce), 
+            bool_to_str(i.sync), 
+            bool_to_str(i.follow_up), 
+            bool_to_str(i.delay_resp)
+        )
     }
 
 }
