@@ -51,6 +51,20 @@ impl PtpMsg {
             _ => Err(Error),
         }
     }
+
+    pub fn new(msg: PtpMsg) -> Vec<u8> {
+        match msg {
+            PtpMsg::DelayReq(x) => PtpHeaderProtocol::build(
+                MGS_DELAY_REQ, 
+                44, 
+                x.domainnumber, 
+                x.clockidentity, 
+                1, 
+                MGS_DELAY_REQ
+            ).to_bytes().unwrap(),
+            _ => panic!("Unsupported message"),
+        }
+    }
 }
 
 impl Display for PtpMsg {
@@ -126,5 +140,16 @@ mod tests {
         let msg = PtpMsg::build(&data).unwrap();
         let s = format!("{}", msg);
         assert_eq!(s, "Sync 485B39FFFE11A8AB");
+    }
+
+    #[test]
+    fn create() {
+        let data = PtpMsg::new(PtpMsg::DelayReq(PtpData{clockidentity: 0x123, domainnumber: 123}));
+        let msg = PtpMsg::build(&data).unwrap();
+        assert!(matches!(msg, PtpMsg::DelayReq(..)));
+        if let PtpMsg::DelayReq(x) = msg {
+            assert_eq!(x.clockidentity, 0x123);
+            assert_eq!(x.domainnumber, 123);
+        }
     }
 }

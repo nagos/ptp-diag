@@ -57,6 +57,31 @@ struct PtpDelayResp {
     requestingsourceportid: u16,
 }
 
+impl PtpHeaderProtocol {
+    pub fn build(messagetype: u8, messagelength: u16, domainnumber: u8, clockidentity: u64, sequenceid: u16, controlfield: u8) -> PtpHeaderProtocol {
+        PtpHeaderProtocol { 
+            majorsdoid: 0, 
+            messagetype, 
+            minorversionptp: 0, 
+            versionptp: 2, 
+            messagelength, 
+            domainnumber, 
+            minorsdoid: 0, 
+            flags: 0, 
+            correction_ns: 0, 
+            correction_subns: 0, 
+            messagetypespecific: 0, 
+            clockidentity, 
+            sourceportid: 1, 
+            sequenceid, 
+            controlfield, 
+            logmessageperiod: 127, 
+            origintimestamp_seconds: 0, 
+            origintimestamp_nanoseconds: 0
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -112,5 +137,13 @@ mod tests {
         assert_eq!(rest.0.len(), 0);
         assert_eq!(val.clockidentity, 0x485b39fffe11a8ab);
         assert_eq!(val.messagetype, MGS_SYNC);
+    }
+
+    #[test]
+    fn header_build() {
+        let msg = PtpHeaderProtocol::build(MGS_DELAY_REQ, 44, 123, 0x123, 1, MGS_DELAY_REQ);
+        assert_eq!(msg.messagetype, MGS_DELAY_REQ);
+        assert_eq!(msg.domainnumber, 123);
+        assert_eq!(msg.clockidentity, 0x123);
     }
 }
