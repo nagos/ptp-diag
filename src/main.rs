@@ -83,9 +83,10 @@ fn main() {
     
     let start_time = SystemTime::now();
     while start_time.elapsed().unwrap() <= Duration::from_secs(5){
-        let msg = rx.recv().unwrap();
-        if let Some(domain) = parse_msg(msg, &mut storage) {
-            tx_req.send(domain).unwrap();
+        if let Ok(msg) = rx.recv_timeout(Duration::from_millis(100)){
+            if let Some(domain) = parse_msg(msg, &mut storage) {
+                tx_req.send(domain).unwrap();
+            }
         }
     }
 
